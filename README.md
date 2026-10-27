@@ -1,0 +1,173 @@
+# opencode-github-notify
+
+OpenCode plugin that watches a GitHub pull request, issue or discussion and pushes new activity back into the session that registered it.
+
+The flow is deliberately agent-driven:
+
+1. The agent (or you) calls `notify_register` on a thread.
+2. A single scheduler starts polling — nothing runs before the first registration.
+3. When something new appears, the plugin sends a **queued prompt** to that same session.
+4. The prompt ends with an **action** block that tells the agent how far it may go: explain only, reply, or reply and act.
+
+It also hooks `gh pr create` / `gh issue create` and appends a one-line hint to the command output, so the agent knows it can offer to follow the thread.
+
+## Install
+
+```jsonc
+{
+  "plugins": [
+    {
+      "package": "opencode-github-notify",
+      "options": {
+        "interval": 60000,
+        "actions": {
+          "just-explain": { "type": "prompt", "prompt": "Only translate and verify. Touch nothing." }
+        }
+      }
+    }
+  ]
+}
+```
+
+A local checkout works the same way — point `package` at the directory:
+
+```jsonc
+{ "package": "/absolute/path/to/opencode-github-notify" }
+```
+
+### Options
+
+| Option | Default | Meaning |
+|---|---|---|
+| `interval` | `60000` | Scheduler granularity in ms. Minimum `15000`. A registration may override it. |
+| `host` | `github.com` | GitHub host. Enterprise hosts get `https://<host>/api/v3` and `/api/graphql`. |
+| `token` | — | GitHub token. Falls back to `GITHUB_TOKEN`, `GH_TOKEN`, then `gh auth token --hostname <host>`. |
+| `ignoreAuthors` | `["self"]` | Authors that never wake the session. `"self"` resolves to the authenticated login. |
+| `hint` | `true` | Append the `notify_register` suggestion after `gh pr create` / `gh issue create`. |
+| `actions` | built-ins | Merge over the built-in action table: same key overrides, new key appends. |
+
+## Tools
+
+### `notify_register`
+
+```jsonc
+{
+  "target": "https://github.com/acme/app/pull/42",
+  "filter": "note",
+  "action": "explain-and-reply"
+}
+```
+
+| Field | Values |
+|---|---|
+| `target` | A GitHub URL, or `owner/repo#123` (needs `type` because the number is ambiguous) |
+| `type` | `pr` \| `issue` \| `discussion` — inferred from a URL |
+| `filter` | `note` (comments and reviews) \| `any` (every timeline event) |
+| `action` | Any configured action name |
+| `interval` | Per-registration polling interval, in ms |
+
+The first poll is a **baseline**: existing history is recorded as seen and is not replayed into the session. If that first poll fails (bad URL, bad token), the registration is dropped and the tool call throws, so the agent sees the real error.
+
+### `notify_list`
+
+Lists the threads this session is watching.
+
+### `notify_cancel`
+
+Takes `{ "id": "ntf_..." }`. A session can only cancel its own registrations.
+
+## Actions
+
+An action is a prompt fragment appended to every notification for that registration. Three are built in:
+
+| Action | What the agent is told to do |
+|---|---|
+| `just-explain` | Translate, explain, and verify the claim against the code. No `gh` writes, no edits, no commits, no push. |
+| `explain-and-reply` | The above, then post exactly one reply in the thread with `gh`. Still no source edits, commits, or pushes — a code change must be approved by the user first. |
+| `explain-and-act` | The above, then actually do the work: edit, commit, push, and keep the thread in sync. |
+
+Custom actions are `{ "type": "prompt", "prompt": "..." }` entries under `options.actions`. Using a built-in name overrides it; a new name appends.
+
+Placeholders available in the prompt:
+
+| Placeholder | Value |
+|---|---|
+| `{{url}}` | Canonical URL of the watched thread |
+| `{{target}}` | `owner/repo#123` |
+| `{{type}}` | `pr` \| `issue` \| `discussion` |
+| `{{author}}` | Author of the first update in the batch |
+| `{{kind}}` | `comment` \| `review` \| `event` \| `state` \| `ci` |
+
+Only `type: "prompt"` exists today. The field is part of the schema so other shapes can be added without breaking existing configs.
+
+## What counts as an update
+
+`filter: "note"`
+
+- pull request: conversation comments, inline review comments, reviews
+- issue: conversation comments
+- discussion: top-level comments and their replies
+
+`filter: "any"` — everything above plus the thread timeline:
+
+- labels, assignees, milestones, rename, close/reopen/merge, review requests
+- commits pushed to the head branch, force-pushes, cross-references
+- for pull requests only: a CI aggregate note when all check runs on the head commit finish
+
+Updates are deduplicated by a stable event id before delivery. Up to five updates are batched into one message; the rest arrive on the next poll.
+
+## Auth
+
+The plugin needs a token with read access to the repository. Resolution order:
+
+1. `options.token`
+2. `GITHUB_TOKEN`
+3. `GH_TOKEN`
+4. `gh auth token --hostname <host>`
+
+If you already use the GitHub CLI, nothing needs configuring.
+
+## Loop protection
+
+An agent that replies through `explain-and-reply` or `explain-and-act` writes to the very thread it is watching. Without a guard, every reply would trigger the next notification forever.
+
+`ignoreAuthors` defaults to `["self"]`, which resolves the authenticated login once per plugin load and drops anything that account writes. Add more entries for bots you never want to hear from:
+
+```jsonc
+{ "ignoreAuthors": ["self", "dependabot[bot]", "github-actions[bot]"] }
+```
+
+Do **not** add the bot you actually want to follow, and do not set this to `[]` unless you accept self-triggered loops.
+
+## Behaviour notes
+
+- Registrations persist in plugin storage and resume on the next load. The cursor is kept, so activity that happened while OpenCode was offline is delivered on the first poll.
+- One `setInterval` drives every registration; each registration keeps its own interval and cursor.
+- Ten consecutive failures disable a registration. `404`/`410` drops it immediately.
+- A deleted session causes delivery to fail; the registration is retried until it is disabled. Call `notify_cancel` if a session will not come back.
+- Discussions are read through GraphQL. `filter: "any"` for discussions covers comments, replies, open/closed, and marked answers — GitHub exposes no further timeline surface over one request.
+
+## Development
+
+```bash
+bun install
+bun test
+bunx tsc --noEmit
+```
+
+Layout:
+
+```
+src/index.ts     plugin entry: options, poller, tools, hooks
+src/config.ts    option normalisation and action merging
+src/actions.ts   built-in action prompts and placeholder rendering
+src/target.ts    URL / owner-repo-number parsing
+src/github.ts    auth resolution, REST + GraphQL event fetching
+src/registry.ts  persisted registrations and cursors
+src/poller.ts    scheduler, dedupe, delivery
+src/hooks.ts     gh pr create / gh issue create hint
+```
+
+## License
+
+MIT
