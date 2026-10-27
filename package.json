@@ -1,6 +1,6 @@
 {
   "name": "opencode-github-notify",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "OpenCode plugin that watches GitHub pull requests, issues and discussions, then pushes new replies back into the session that registered them.",
   "type": "module",
   "exports": {
@@ -19,6 +19,14 @@
     "notify"
   ],
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gaojunran/opencode-github-notify.git"
+  },
+  "homepage": "https://github.com/gaojunran/opencode-github-notify#readme",
+  "bugs": {
+    "url": "https://github.com/gaojunran/opencode-github-notify/issues"
+  },
   "scripts": {
     "test": "bun test",
     "typecheck": "tsc --noEmit"
