@@ -23,6 +23,21 @@ describe("resolveOptions", () => {
     expect(options.actions["translate-only"]?.prompt).toBe("translate {{url}}")
   })
 
+  test("keeps the default action and accepts an override", () => {
+    expect(resolveOptions({}).defaultAction).toBe("explain-and-reply")
+    expect(resolveOptions({ defaultAction: "just-explain" }).defaultAction).toBe("just-explain")
+    expect(
+      resolveOptions({
+        defaultAction: "translate-only",
+        actions: { "translate-only": { type: "prompt", prompt: "translate" } },
+      }).defaultAction,
+    ).toBe("translate-only")
+  })
+
+  test("rejects a default action that does not exist", () => {
+    expect(() => resolveOptions({ defaultAction: "nope" })).toThrow(/not a configured action/)
+  })
+
   test("rejects an unknown action type", () => {
     expect(() => resolveOptions({ actions: { custom: { type: "command", prompt: "x" } } })).toThrow(/only type "prompt"/)
   })

@@ -11,6 +11,6 @@ export default {
   setup: (ctx: Parameters<typeof real.setup>[0]) =>
     real.setup({
       ...ctx,
-      options: { baseUrl: "http://127.0.0.1:8787", token: "test-token", interval: 15000 },
+      options: { baseUrl: "http://127.0.0.1:8787", token: "test-token", interval: 15000, defaultAction: "just-explain" },
     }),
 }

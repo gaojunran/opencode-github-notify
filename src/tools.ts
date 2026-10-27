@@ -16,7 +16,7 @@ interface CancelInput {
   id: string
 }
 
-const REGISTER_INPUT = {
+const registerInput = (options: Options) => ({
   type: "object",
   additionalProperties: false,
   required: ["target"],
@@ -38,8 +38,11 @@ const REGISTER_INPUT = {
     },
     action: {
       type: "string",
-      default: "explain-and-reply",
-      description: "How to handle a notification. Built in: just-explain, explain-and-reply, explain-and-act.",
+      default: options.defaultAction,
+      description: [
+        `The user's preferred action is \`${options.defaultAction}\`, so omit this field unless the user explicitly asked for a different behaviour.`,
+        `Available: ${Object.keys(options.actions).join(", ")}.`,
+      ].join(" "),
     },
     interval: {
       type: "number",
@@ -47,7 +50,7 @@ const REGISTER_INPUT = {
       description: "Polling interval in milliseconds. Defaults to the plugin option.",
     },
   },
-}
+})
 
 const CANCEL_INPUT = {
   type: "object",
@@ -88,14 +91,15 @@ export const registerTools = async (
         "Start watching a GitHub pull request, issue or discussion.",
         "New comments/reviews (filter=note) or any timeline event (filter=any) are pushed into this session as a queued prompt,",
         "and the chosen action tells you how to respond.",
+        `The user's preferred action is \`${options.defaultAction}\` - omit action to use it, and only pass a different one when the user explicitly asks for different behaviour.`,
         "Call this only when the user wants follow-ups here - typically right after you created the thread with `gh pr create`.",
       ].join(" "),
-      input: REGISTER_INPUT,
+      input: registerInput(options),
       execute: async (input: unknown, context: { sessionID: string }) => {
         const values = input as RegisterInput
         const target = parseTarget(String(values.target ?? ""), values.type, options.host)
         const filter = values.filter === "any" ? "any" : "note"
-        const action = typeof values.action === "string" && values.action !== "" ? values.action : "explain-and-reply"
+        const action = typeof values.action === "string" && values.action !== "" ? values.action : options.defaultAction
 
         if (!options.actions[action]) {
           throw new Error(

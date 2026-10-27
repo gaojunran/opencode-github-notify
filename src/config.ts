@@ -23,6 +23,8 @@ export interface Options {
   /** Append a `notify_register` suggestion after `gh pr create` / `gh issue create`. */
   hint: boolean
   actions: Record<string, ActionDef>
+  /** What the user wants by default. The agent sends it unless told otherwise. */
+  defaultAction: string
 }
 
 export const MIN_INTERVAL = 15_000
@@ -53,6 +55,13 @@ export const resolveOptions = (raw: PluginOptions): Options => {
     actions[name] = parseAction(name, def)
   }
 
+  const defaultAction = typeof raw.defaultAction === "string" && raw.defaultAction !== "" ? raw.defaultAction : "explain-and-reply"
+  if (!actions[defaultAction]) {
+    throw new Error(
+      `[github-notify] options.defaultAction "${defaultAction}" is not a configured action. Available: ${Object.keys(actions).join(", ")}`,
+    )
+  }
+
   return {
     interval,
     host: typeof raw.host === "string" && raw.host !== "" ? raw.host : "github.com",
@@ -63,5 +72,6 @@ export const resolveOptions = (raw: PluginOptions): Options => {
       : ["self"],
     hint: raw.hint !== false,
     actions,
+    defaultAction,
   }
 }

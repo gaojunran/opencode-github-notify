@@ -16,7 +16,7 @@ const flatten = (content: unknown): string => {
     .join("\n")
 }
 
-const suggestion = (url: string): string => {
+const suggestion = (url: string, action: string): string => {
   let target = url
   try {
     target = parseTarget(url).url
@@ -26,7 +26,7 @@ const suggestion = (url: string): string => {
   return [
     "[github-notify] GitHub thread created.",
     "If the user wants to keep following this thread, call:",
-    `  notify_register({ target: "${target}", filter: "note", action: "explain-and-reply" })`,
+    `  notify_register({ target: "${target}", filter: "note", action: "${action}" })`,
     "Ask the user first - do not register without their intent.",
   ].join("\n")
 }
@@ -55,7 +55,7 @@ export const installHooks = async (ctx: Plugin.Context, options: Options): Promi
     const match = THREAD_URL.exec(flatten(event.result.content))
     if (!match?.[1]) return
 
-    const hint = suggestion(match[1])
+    const hint = suggestion(match[1], options.defaultAction)
     const content = event.result.content
     const next =
       content === undefined

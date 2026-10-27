@@ -59,4 +59,15 @@ describe("installHooks", () => {
     await installHooks(h.ctx, resolveOptions({ hint: false }))
     expect(h.hooks.size).toBe(0)
   })
+
+  test("suggests the user's preferred action", async () => {
+    const h = harness()
+    await installHooks(h.ctx, resolveOptions({ defaultAction: "just-explain" }))
+
+    const { before, after } = event("gh pr create --title x", "https://github.com/acme/app/pull/42")
+    await h.fire("execute.before", before)
+    await h.fire("execute.after", after)
+
+    expect(String(after.result.content)).toContain('action: "just-explain"')
+  })
 })

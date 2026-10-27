@@ -20,6 +20,7 @@ It also hooks `gh pr create` / `gh issue create` and appends a one-line hint to 
       "package": "opencode-github-notify",
       "options": {
         "interval": 60000,
+        "defaultAction": "explain-and-reply",
         "actions": {
           "just-explain": { "type": "prompt", "prompt": "Only translate and verify. Touch nothing." }
         }
@@ -46,6 +47,7 @@ checkout, drop a shim into `<project>/.opencode/plugin/` (see
 | `ignoreAuthors` | `["self"]` | Authors that never wake the session. `"self"` resolves to the authenticated login. |
 | `hint` | `true` | Append the `notify_register` suggestion after `gh pr create` / `gh issue create`. |
 | `actions` | built-ins | Merge over the built-in action table: same key overrides, new key appends. |
+| `defaultAction` | `explain-and-reply` | The user's preferred action. It is injected into the tool description and the `gh pr create` hint, and used whenever the agent omits `action`. Must name a configured action. |
 
 ## Tools
 
@@ -64,7 +66,7 @@ checkout, drop a shim into `<project>/.opencode/plugin/` (see
 | `target` | A GitHub URL, or `owner/repo#123` (needs `type` because the number is ambiguous) |
 | `type` | `pr` \| `issue` \| `discussion` — inferred from a URL |
 | `filter` | `note` (comments and reviews) \| `any` (every timeline event) |
-| `action` | Any configured action name |
+| `action` | Omit to use `defaultAction`. Pass a value only when the user explicitly asks for different behaviour |
 | `interval` | Per-registration polling interval, in ms |
 
 The first poll is a **baseline**: existing history is recorded as seen and is not replayed into the session. If that first poll fails (bad URL, bad token), the registration is dropped and the tool call throws, so the agent sees the real error.
@@ -80,6 +82,11 @@ Takes `{ "id": "ntf_..." }`. A session can only cancel its own registrations.
 ## Actions
 
 An action is a prompt fragment appended to every notification for that registration. Three are built in:
+
+The plugin tells the agent which one is preferred: `options.defaultAction` is spelled out in the tool
+description and is the schema default, with the instruction to use it unless the user explicitly asks
+for something else. So a user-level preference lands in `opencode.jsonc` once, and the agent stops
+re-deciding per call.
 
 | Action | What the agent is told to do |
 |---|---|

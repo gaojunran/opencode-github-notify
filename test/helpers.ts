@@ -6,7 +6,15 @@ export interface Harness {
   ctx: Plugin.Context
   store: Map<string, unknown>
   prompts: { sessionID?: unknown; text: string; delivery?: string }[]
-  tools: Map<string, { name: string; execute: (input: unknown, context: any) => Promise<{ content: string }> }>
+  tools: Map<
+    string,
+    {
+      name: string
+      description: string
+      input: any
+      execute: (input: unknown, context: any) => Promise<{ content: string }>
+    }
+  >
   hooks: Map<string, HookHandler[]>
   fire(name: string, event: any): Promise<void>
 }

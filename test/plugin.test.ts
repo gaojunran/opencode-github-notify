@@ -44,6 +44,23 @@ describe("plugin", () => {
     await cleanup?.()
   })
 
+  test("uses the configured preference when action is omitted", async () => {
+    stubGitHub()
+    const h = harness({ token: "test-token", defaultAction: "explain-and-act" })
+    const cleanup = await plugin.setup(h.ctx)
+    const register = h.tools.get("register")
+    if (!register) throw new Error("tools missing")
+
+    expect(register.description).toContain("The user's preferred action is `explain-and-act`")
+    expect(register.input.properties.action.default).toBe("explain-and-act")
+    expect(register.input.properties.action.description).toContain("omit this field")
+
+    const created = await register.execute({ target: "https://github.com/acme/app/pull/7" }, { sessionID: "ses_1" })
+    expect(created.content).toContain("action=explain-and-act")
+
+    await cleanup?.()
+  })
+
   test("rejects an unknown action", async () => {
     stubGitHub()
     const h = harness({ token: "test-token" })
