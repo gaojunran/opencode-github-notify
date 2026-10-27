@@ -24,8 +24,8 @@ describe("resolveOptions", () => {
   })
 
   test("keeps the default action and accepts an override", () => {
-    expect(resolveOptions({}).defaultAction).toBe("explain-and-reply")
-    expect(resolveOptions({ defaultAction: "just-explain" }).defaultAction).toBe("just-explain")
+    expect(resolveOptions({}).defaultAction).toBe("just-explain")
+    expect(resolveOptions({ defaultAction: "explain-and-act" }).defaultAction).toBe("explain-and-act")
     expect(
       resolveOptions({
         defaultAction: "translate-only",

@@ -20,7 +20,7 @@ It also hooks `gh pr create` / `gh issue create` and appends a one-line hint to 
       "package": "opencode-github-notify",
       "options": {
         "interval": 60000,
-        "defaultAction": "explain-and-reply",
+        "defaultAction": "just-explain",
         "actions": {
           "just-explain": { "type": "prompt", "prompt": "Only translate and verify. Touch nothing." }
         }
@@ -47,7 +47,7 @@ checkout, drop a shim into `<project>/.opencode/plugin/` (see
 | `ignoreAuthors` | `["self"]` | Authors that never wake the session. `"self"` resolves to the authenticated login. |
 | `hint` | `true` | Append the `notify_register` suggestion after `gh pr create` / `gh issue create`. |
 | `actions` | built-ins | Merge over the built-in action table: same key overrides, new key appends. |
-| `defaultAction` | `explain-and-reply` | The user's preferred action. It is injected into the tool description and the `gh pr create` hint, and used whenever the agent omits `action`. Must name a configured action. |
+| `defaultAction` | `just-explain` | The user's preferred action. It is injected into the tool description and the `gh pr create` hint, and used whenever the agent omits `action`. Must name a configured action. |
 
 ## Tools
 
@@ -57,7 +57,7 @@ checkout, drop a shim into `<project>/.opencode/plugin/` (see
 {
   "target": "https://github.com/acme/app/pull/42",
   "filter": "note",
-  "action": "explain-and-reply"
+  "action": "just-explain"
 }
 ```
 
@@ -87,6 +87,11 @@ The plugin tells the agent which one is preferred: `options.defaultAction` is sp
 description and is the schema default, with the instruction to use it unless the user explicitly asks
 for something else. So a user-level preference lands in `opencode.jsonc` once, and the agent stops
 re-deciding per call.
+
+The default is `just-explain`, and that is deliberate. A watching agent that also replies turns every
+notification into a GitHub comment; with a few registrations open, threads fill up with AI-written
+acknowledgements that the reviewer never asked for. Silence is the safe default — replying is opt-in
+(`explain-and-reply`) or explicit per call.
 
 | Action | What the agent is told to do |
 |---|---|

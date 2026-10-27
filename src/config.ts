@@ -55,7 +55,10 @@ export const resolveOptions = (raw: PluginOptions): Options => {
     actions[name] = parseAction(name, def)
   }
 
-  const defaultAction = typeof raw.defaultAction === "string" && raw.defaultAction !== "" ? raw.defaultAction : "explain-and-reply"
+  // Explaining only is the safe default: a watching agent that also replies turns
+  // every notification into a GitHub comment, and several registrations quickly
+  // drown the thread in AI-written noise. Replying has to be asked for.
+  const defaultAction = typeof raw.defaultAction === "string" && raw.defaultAction !== "" ? raw.defaultAction : "just-explain"
   if (!actions[defaultAction]) {
     throw new Error(
       `[github-notify] options.defaultAction "${defaultAction}" is not a configured action. Available: ${Object.keys(actions).join(", ")}`,
