@@ -37,7 +37,7 @@ export class GitHubError extends Error {
 
 const MAX_PAGES = 5
 
-export const resolveClient = async (options: { host: string; token?: string }): Promise<GitHubClient> => {
+export const resolveClient = async (options: { host: string; token?: string; baseUrl?: string }): Promise<GitHubClient> => {
   const token =
     options.token ??
     process.env.GITHUB_TOKEN ??
@@ -50,11 +50,13 @@ export const resolveClient = async (options: { host: string; token?: string }): 
     )
   }
 
+  const api = options.baseUrl ?? (options.host === "github.com" ? "https://api.github.com" : `https://${options.host}/api/v3`)
+
   return {
     host: options.host,
     token,
-    api: options.host === "github.com" ? "https://api.github.com" : `https://${options.host}/api/v3`,
-    graphql: options.host === "github.com" ? "https://api.github.com/graphql" : `https://${options.host}/api/graphql`,
+    api,
+    graphql: options.baseUrl ? `${options.baseUrl}/graphql` : options.host === "github.com" ? "https://api.github.com/graphql" : `https://${options.host}/api/graphql`,
   }
 }
 

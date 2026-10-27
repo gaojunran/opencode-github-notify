@@ -29,11 +29,11 @@ It also hooks `gh pr create` / `gh issue create` and appends a one-line hint to 
 }
 ```
 
-A local checkout works the same way — point `package` at the directory:
-
-```jsonc
-{ "package": "/absolute/path/to/opencode-github-notify" }
-```
+A `plugins` entry must name an npm package. On opencode 2.1.3 a filesystem path is
+ignored — a file path warns `configured plugin path must be a directory`, while a
+directory path or `file://` path is skipped without a word. To run this from a
+checkout, drop a shim into `<project>/.opencode/plugin/` (see
+[`e2e/.opencode/plugin/github-notify.ts`](e2e/.opencode/plugin/github-notify.ts)).
 
 ### Options
 
@@ -41,6 +41,7 @@ A local checkout works the same way — point `package` at the directory:
 |---|---|---|
 | `interval` | `60000` | Scheduler granularity in ms. Minimum `15000`. A registration may override it. |
 | `host` | `github.com` | GitHub host. Enterprise hosts get `https://<host>/api/v3` and `/api/graphql`. |
+| `baseUrl` | — | Overrides the derived REST base URL (proxies, local test servers). GraphQL is served from `<baseUrl>/graphql`. |
 | `token` | — | GitHub token. Falls back to `GITHUB_TOKEN`, `GH_TOKEN`, then `gh auth token --hostname <host>`. |
 | `ignoreAuthors` | `["self"]` | Authors that never wake the session. `"self"` resolves to the authenticated login. |
 | `hint` | `true` | Append the `notify_register` suggestion after `gh pr create` / `gh issue create`. |
@@ -144,6 +145,7 @@ Do **not** add the bot you actually want to follow, and do not set this to `[]` 
 - Registrations persist in plugin storage and resume on the next load. The cursor is kept, so activity that happened while OpenCode was offline is delivered on the first poll.
 - One `setInterval` drives every registration; each registration keeps its own interval and cursor.
 - Ten consecutive failures disable a registration. `404`/`410` drops it immediately.
+- A failed baseline poll throws back into the tool call and rolls the registration back, so a bad URL or token surfaces immediately instead of silently watching nothing.
 - A deleted session causes delivery to fail; the registration is retried until it is disabled. Call `notify_cancel` if a session will not come back.
 - Discussions are read through GraphQL. `filter: "any"` for discussions covers comments, replies, open/closed, and marked answers — GitHub exposes no further timeline surface over one request.
 
@@ -154,6 +156,9 @@ bun install
 bun test
 bunx tsc --noEmit
 ```
+
+An end-to-end check against a mock GitHub runs the real plugin inside a real
+server: see [`e2e/README.md`](e2e/README.md).
 
 Layout:
 

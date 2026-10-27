@@ -9,6 +9,11 @@ export interface Options {
   /** How often the scheduler checks each registration. */
   interval: number
   host: string
+  /**
+   * Overrides the derived REST base URL, for proxies and local test servers.
+   * `graphql` is served from `${baseUrl}/graphql`.
+   */
+  baseUrl?: string
   token?: string
   /**
    * Comment authors that must never wake the session. `"self"` resolves to the
@@ -51,6 +56,7 @@ export const resolveOptions = (raw: PluginOptions): Options => {
   return {
     interval,
     host: typeof raw.host === "string" && raw.host !== "" ? raw.host : "github.com",
+    baseUrl: typeof raw.baseUrl === "string" && raw.baseUrl !== "" ? raw.baseUrl : undefined,
     token: typeof raw.token === "string" && raw.token !== "" ? raw.token : undefined,
     ignoreAuthors: Array.isArray(raw.ignoreAuthors)
       ? (raw.ignoreAuthors as unknown[]).filter((value): value is string => typeof value === "string")
